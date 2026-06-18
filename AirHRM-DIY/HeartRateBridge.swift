@@ -26,6 +26,8 @@ final class HeartRateBridge: NSObject, ObservableObject {
     @Published var isBroadcasting: Bool = false
     @Published var subscriberConnected: Bool = false
     @Published var statusText: String = "Pronto"
+    @Published var contactLost: Bool = false
+    @Published var currentSource: String? = nil
 
     // Auto-start quando vengono rilevati gli AirPods come uscita audio.
     @Published var autoStartEnabled: Bool {
@@ -36,7 +38,15 @@ final class HeartRateBridge: NSObject, ObservableObject {
     }
 
     private static let autoStartDefaultsKey = "autoStartEnabled"
+    // Se non arriva un sample HR valido entro questa soglia, dichiariamo "contatto perso"
+    // e SMETTIAMO di notificare il valore al central (Garmin) per ottenere un dropout reale.
+    private static let contactLostThreshold: TimeInterval = 5.0
+    private static let contactWatchdogInterval: TimeInterval = 1.0
+
     private var isStarting = false
+    private var lastSampleAt: Date?
+    private var contactWatchdog: Timer?
+    private var anchoredHRQuery: HKAnchoredObjectQuery?
 
     private let log = Logger(subsystem: "com.tuonome.airhrmdiy", category: "bridge")
 
@@ -93,11 +103,18 @@ final class HeartRateBridge: NSObject, ObservableObject {
         builder?.endCollection(withEnd: Date()) { _, _ in }
         peripheralManager?.stopAdvertising()
         if let mgr = peripheralManager { mgr.removeAllServices() }
+        contactWatchdog?.invalidate()
+        contactWatchdog = nil
+        if let q = anchoredHRQuery { healthStore.stop(q) }
+        anchoredHRQuery = nil
         session = nil
         builder = nil
         isBroadcasting = false
         subscriberConnected = false
         currentBPM = 0
+        contactLost = false
+        currentSource = nil
+        lastSampleAt = nil
         statusText = "Fermato"
     }
 
@@ -188,11 +205,14 @@ final class HeartRateBridge: NSObject, ObservableObject {
 
             session.startActivity(with: Date())
             builder.beginCollection(withStart: Date()) { [weak self] ok, err in
-                DispatchQueue.main.async {
+                Task { @MainActor in
+                    guard let self else { return }
                     if ok {
-                        self?.statusText = "Sessione attiva — indossa gli AirPods"
+                        self.statusText = "Sessione attiva — indossa gli AirPods"
+                        self.startContactWatchdog()
+                        self.startHRSourceMonitor()
                     } else {
-                        self?.statusText = "Errore avvio sessione: \(err?.localizedDescription ?? "?")"
+                        self.statusText = "Errore avvio sessione: \(err?.localizedDescription ?? "?")"
                     }
                 }
             }
@@ -251,7 +271,17 @@ final class HeartRateBridge: NSObject, ObservableObject {
     // MARK: - Emissione del pacchetto HR
 
     private func broadcast(bpm: Int) {
+        // Ignora valori non plausibili (gli AirPods, quando perdono contatto, smettono di
+        // inviare campioni; un eventuale 0 sarebbe rumore da non ritrasmettere).
+        guard bpm > 0 else { return }
+
+        lastSampleAt = Date()
+        if contactLost {
+            contactLost = false
+            statusText = "Contatto ripreso"
+        }
         currentBPM = bpm
+
         guard let mgr = peripheralManager, let char = hrCharacteristic else { return }
 
         // Formato Heart Rate Measurement: byte0 = flags, byte1 = HR (uint8)
@@ -261,6 +291,65 @@ final class HeartRateBridge: NSObject, ObservableObject {
 
         let ok = mgr.updateValue(packet, for: char, onSubscribedCentrals: nil)
         if !ok { log.debug("updateValue in coda (transmit queue piena)") }
+    }
+
+    // MARK: - Contact-lost watchdog
+
+    private func startContactWatchdog() {
+        contactWatchdog?.invalidate()
+        // Resetta il timestamp così che il watchdog non scatti subito senza dati.
+        lastSampleAt = nil
+        contactLost = false
+        contactWatchdog = Timer.scheduledTimer(withTimeInterval: Self.contactWatchdogInterval,
+                                               repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.checkContactTimeout() }
+        }
+    }
+
+    private func checkContactTimeout() {
+        guard let last = lastSampleAt else { return }
+        let elapsed = Date().timeIntervalSince(last)
+        guard elapsed > Self.contactLostThreshold else { return }
+        if !contactLost {
+            contactLost = true
+            statusText = "Contatto perso — Garmin in fallback al polso"
+            log.debug("contact-lost dopo \(elapsed, format: .fixed(precision: 1))s")
+        }
+    }
+
+    // MARK: - Sorgente HealthKit (Watch / AirPods) per trasparenza in UI
+
+    private func startHRSourceMonitor() {
+        if let q = anchoredHRQuery { healthStore.stop(q) }
+        let hrType = HKQuantityType(.heartRate)
+        let predicate = HKQuery.predicateForSamples(withStart: Date(), end: nil, options: .strictStartDate)
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = { [weak self] _, samples, _, _, _ in
+            guard let label = HeartRateBridge.deviceLabel(forLatestIn: samples) else { return }
+            Task { @MainActor in self?.currentSource = label }
+        }
+        let q = HKAnchoredObjectQuery(type: hrType,
+                                      predicate: predicate,
+                                      anchor: nil,
+                                      limit: HKObjectQueryNoLimit,
+                                      resultsHandler: handler)
+        q.updateHandler = handler
+        healthStore.execute(q)
+        anchoredHRQuery = q
+    }
+
+    private nonisolated static func deviceLabel(forLatestIn samples: [HKSample]?) -> String? {
+        guard let samples, !samples.isEmpty else { return nil }
+        let latest = samples
+            .compactMap { $0 as? HKQuantitySample }
+            .max(by: { $0.endDate < $1.endDate })
+        guard let device = latest?.device else { return nil }
+        let blob = ((device.model ?? "") + " "
+                    + (device.name ?? "") + " "
+                    + (device.localIdentifier ?? "")).lowercased()
+        if blob.contains("watch") { return "Apple Watch" }
+        if blob.contains("airpods") { return "AirPods" }
+        if blob.contains("iphone") { return "iPhone" }
+        return device.name ?? device.model
     }
 }
 

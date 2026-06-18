@@ -29,9 +29,21 @@ struct ContentView: View {
             VStack(spacing: 6) {
                 Text(bridge.currentBPM > 0 ? "\(bridge.currentBPM)" : "—")
                     .font(.system(size: 92, weight: .bold, design: .rounded))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(bridge.contactLost ? Color.secondary : Color.red)
                 Text("BPM")
                     .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
+
+            if bridge.contactLost {
+                Label("Contatto perso", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.subheadline.weight(.semibold))
+            }
+
+            if let source = bridge.currentSource {
+                Text("Sorgente: \(source)")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
