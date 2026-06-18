@@ -16,6 +16,7 @@ import Foundation
 import HealthKit
 import CoreBluetooth
 import AVFoundation
+import UIKit
 import os
 
 @MainActor
@@ -47,6 +48,11 @@ final class HeartRateBridge: NSObject, ObservableObject {
     private var lastSampleAt: Date?
     private var contactWatchdog: Timer?
     private var anchoredHRQuery: HKAnchoredObjectQuery?
+    // Ultimo pacchetto HR pubblicato e flag di ritrasmissione pendente: quando la
+    // transmit queue di Core Bluetooth è piena, updateValue ritorna false e dobbiamo
+    // attendere peripheralManagerIsReady(toUpdateSubscribers:) per riprovare.
+    private var lastPacket: Data?
+    private var hasPendingResend: Bool = false
 
     private let log = Logger(subsystem: "com.tuonome.airhrmdiy", category: "bridge")
 
@@ -115,6 +121,8 @@ final class HeartRateBridge: NSObject, ObservableObject {
         contactLost = false
         currentSource = nil
         lastSampleAt = nil
+        lastPacket = nil
+        hasPendingResend = false
         statusText = "Fermato"
     }
 
@@ -127,8 +135,28 @@ final class HeartRateBridge: NSObject, ObservableObject {
             name: AVAudioSession.routeChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidBecomeActive(_:)),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
         // Valuta subito lo stato del route (gli AirPods potrebbero essere già attivi).
         evaluateAutoStart()
+    }
+
+    @objc nonisolated private func handleAppDidBecomeActive(_ notification: Notification) {
+        Task { @MainActor in
+            self.evaluateAutoStart()
+            // Se la sessione è viva e il BT è acceso ma non stiamo trasmettendo
+            // (es. dopo un periodo in background con BT spento e riacceso), ripubblica.
+            if let mgr = self.peripheralManager,
+               mgr.state == .poweredOn,
+               self.session != nil,
+               !self.isBroadcasting {
+                self.publishService()
+            }
+        }
     }
 
     @objc nonisolated private func handleRouteChange(_ notification: Notification) {
@@ -234,6 +262,13 @@ final class HeartRateBridge: NSObject, ObservableObject {
     private func publishService() {
         guard let mgr = peripheralManager, mgr.state == .poweredOn else { return }
 
+        // Se il sistema ha già ripristinato il nostro servizio via willRestoreState,
+        // la characteristic è già agganciata: saltiamo il re-add e ripartiamo dall'advertising.
+        if hrCharacteristic != nil {
+            startAdvertising()
+            return
+        }
+
         // Heart Rate Measurement (notify)
         let hrChar = CBMutableCharacteristic(
             type: hrMeasUUID,
@@ -282,15 +317,32 @@ final class HeartRateBridge: NSObject, ObservableObject {
         }
         currentBPM = bpm
 
-        guard let mgr = peripheralManager, let char = hrCharacteristic else { return }
-
         // Formato Heart Rate Measurement: byte0 = flags, byte1 = HR (uint8)
         // flags 0x00 => valore HR a 8 bit, nessun campo extra.
         let clamped = UInt8(max(0, min(255, bpm)))
         let packet = Data([0x00, clamped])
+        lastPacket = packet
+
+        guard let mgr = peripheralManager, let char = hrCharacteristic else { return }
 
         let ok = mgr.updateValue(packet, for: char, onSubscribedCentrals: nil)
-        if !ok { log.debug("updateValue in coda (transmit queue piena)") }
+        if !ok {
+            hasPendingResend = true
+            log.debug("updateValue in coda (transmit queue piena), attendo isReady")
+        } else {
+            hasPendingResend = false
+        }
+    }
+
+    // Ritrasmette l'ultimo pacchetto disponibile se ne avevamo uno in attesa.
+    // Usa lastPacket (non quello che ha fallito) così il central riceve il valore più recente.
+    private func flushPendingPacket() {
+        guard hasPendingResend,
+              let pkt = lastPacket,
+              let mgr = peripheralManager,
+              let char = hrCharacteristic else { return }
+        let ok = mgr.updateValue(pkt, for: char, onSubscribedCentrals: nil)
+        if ok { hasPendingResend = false }
     }
 
     // MARK: - Contact-lost watchdog
@@ -396,11 +448,21 @@ extension HeartRateBridge: CBPeripheralManagerDelegate {
             switch peripheral.state {
             case .poweredOn:
                 self.publishService()
+            case .poweredOff:
+                self.isBroadcasting = false
+                self.subscriberConnected = false
+                self.statusText = "Bluetooth spento"
             case .unauthorized:
                 self.statusText = "Permesso Bluetooth negato"
-            case .poweredOff:
-                self.statusText = "Bluetooth spento"
-            default:
+            case .unsupported:
+                self.statusText = "Bluetooth non supportato"
+            case .resetting:
+                self.isBroadcasting = false
+                self.subscriberConnected = false
+                self.statusText = "Bluetooth in reset…"
+            case .unknown:
+                self.statusText = "Bluetooth in inizializzazione…"
+            @unknown default:
                 break
             }
         }
@@ -430,12 +492,68 @@ extension HeartRateBridge: CBPeripheralManagerDelegate {
         Task { @MainActor in self.subscriberConnected = false }
     }
 
-    // State restoration: ripubblica il servizio se il sistema riavvia l'app in background
+    // State restoration: il sistema rilancia l'app in background passandoci i servizi
+    // che teneva pubblicati per nostro conto. Ricolleghiamo la nostra characteristic
+    // e proviamo a recuperare la sessione workout, così possiamo riprendere a notificare.
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
-                                       willRestoreState dict: [String : Any]) { }
+                                       willRestoreState dict: [String : Any]) {
+        let restoredServices = dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService]
+        Task { @MainActor in
+            if let services = restoredServices {
+                for svc in services where svc.uuid == self.hrServiceUUID {
+                    let chars = svc.characteristics ?? []
+                    for c in chars where c.uuid == self.hrMeasUUID {
+                        if let mutable = c as? CBMutableCharacteristic {
+                            self.hrCharacteristic = mutable
+                        }
+                    }
+                }
+            }
+            self.statusText = "Stato BLE ripristinato dal sistema"
+            self.recoverWorkoutSessionIfNeeded()
+            // L'advertising verrà ripreso quando peripheralManagerDidUpdateState
+            // riporterà lo stato a .poweredOn (publishService() farà il giusto).
+        }
+    }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        didReceiveRead request: CBATTRequest) {
         peripheral.respond(to: request, withResult: .success)
+    }
+
+    // Transmit queue di CB di nuovo libera: rispediamo il pacchetto più recente.
+    nonisolated func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
+        Task { @MainActor in self.flushPendingPacket() }
+    }
+}
+
+// MARK: - Recovery sessione workout (background / restart)
+
+extension HeartRateBridge {
+
+    fileprivate func recoverWorkoutSessionIfNeeded() {
+        guard session == nil else { return }
+        healthStore.recoverActiveWorkoutSession { [weak self] recovered, error in
+            Task { @MainActor in
+                guard let self else { return }
+                if let error {
+                    self.log.error("Recover session: \(error.localizedDescription)")
+                    return
+                }
+                guard let s = recovered else { return }
+                let b = s.associatedWorkoutBuilder()
+                if b.dataSource == nil {
+                    b.dataSource = HKLiveWorkoutDataSource(healthStore: self.healthStore,
+                                                           workoutConfiguration: s.workoutConfiguration)
+                }
+                s.delegate = self
+                b.delegate = self
+                self.session = s
+                self.builder = b
+                self.startContactWatchdog()
+                self.startHRSourceMonitor()
+                self.statusText = "Sessione workout recuperata dal background"
+            }
+        }
     }
 }
