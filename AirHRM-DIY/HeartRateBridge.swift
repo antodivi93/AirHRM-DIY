@@ -226,4 +226,20 @@ final class HeartRateBridge: ObservableObject {
             log.debug("contact-lost dopo \(elapsed, format: .fixed(precision: 1))s")
         }
     }
+
+    #if DEBUG
+    /// Solo per i `#Preview` di SwiftUI: forza lo stato pubblicato.
+    /// Non chiamare in produzione.
+    func _setPreviewState(state: BridgeState,
+                          bpm: Int = 0,
+                          source: String? = nil,
+                          subscriberConnected: Bool = false,
+                          contactLost: Bool = false) {
+        self.state = state
+        self.currentBPM = bpm
+        self.currentSource = source
+        self.subscriberConnected = subscriberConnected
+        self.contactLost = contactLost
+    }
+    #endif
 }

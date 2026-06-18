@@ -78,3 +78,42 @@ struct ContentView: View {
         .padding()
     }
 }
+
+#if DEBUG
+#Preview("Idle") {
+    let bridge = HeartRateBridge()
+    bridge._setPreviewState(state: .idle)
+    return ContentView().environmentObject(bridge)
+}
+
+#Preview("Waiting for sensor") {
+    let bridge = HeartRateBridge()
+    bridge._setPreviewState(state: .waitingForSensor, subscriberConnected: true)
+    return ContentView().environmentObject(bridge)
+}
+
+#Preview("Broadcasting") {
+    let bridge = HeartRateBridge()
+    bridge._setPreviewState(state: .broadcasting,
+                            bpm: 142,
+                            source: "AirPods",
+                            subscriberConnected: true)
+    return ContentView().environmentObject(bridge)
+}
+
+#Preview("Contact lost") {
+    let bridge = HeartRateBridge()
+    bridge._setPreviewState(state: .contactLost,
+                            bpm: 142,
+                            source: "AirPods",
+                            subscriberConnected: true,
+                            contactLost: true)
+    return ContentView().environmentObject(bridge)
+}
+
+#Preview("Bluetooth off") {
+    let bridge = HeartRateBridge()
+    bridge._setPreviewState(state: .bluetoothOff)
+    return ContentView().environmentObject(bridge)
+}
+#endif
