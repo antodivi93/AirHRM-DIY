@@ -51,7 +51,7 @@ struct ContentView: View {
                   systemImage: bridge.subscriberConnected ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
                 .foregroundStyle(bridge.subscriberConnected ? .green : .secondary)
 
-            Text(bridge.statusText)
+            Text(bridge.state.displayText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
