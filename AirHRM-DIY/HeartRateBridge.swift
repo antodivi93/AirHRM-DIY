@@ -228,7 +228,7 @@ final class HeartRateBridge: ObservableObject {
         if !contactLost {
             contactLost = true
             state = .contactLost
-            log.debug("contact-lost dopo \(elapsed, format: .fixed(precision: 1))s")
+            log.debug("contact-lost after \(elapsed, format: .fixed(precision: 1))s")
         }
     }
 

@@ -2,13 +2,13 @@
 //  HeartRateBridgeIntents.swift
 //  AirHRM-DIY
 //
-//  App Intents per Start/Stop del ponte HR.
+//  App Intents for Start/Stop of the HR bridge.
 //
-//  Sbloccano:
-//   - Siri ("Avvia ponte HR" / "Ferma ponte HR")
-//   - Action Button su iPhone 15 Pro / Pro Max e successivi
-//   - Personal Automation in Shortcuts (es. "Quando inizia un Allenamento
-//     su Apple Watch -> esegui Avvia ponte HR")
+//  These enable:
+//   - Siri ("Start HR Bridge" / "Stop HR Bridge")
+//   - Action Button on iPhone 15 Pro / Pro Max and newer
+//   - Personal Automation in Shortcuts (e.g. "When a Workout starts on
+//     Apple Watch -> run Start HR Bridge")
 //   - Lock Screen / widget / Spotlight
 //
 
@@ -19,23 +19,23 @@ import Foundation
 
 struct StartHeartRateBridgeIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Avvia ponte HR"
+    static var title: LocalizedStringResource = "Start HR Bridge"
 
     static var description = IntentDescription(
-        "Avvia la trasmissione della frequenza cardiaca degli AirPods come fascia BLE.",
-        categoryName: "Allenamento"
+        "Starts broadcasting the AirPods heart rate as a BLE chest strap.",
+        categoryName: "Workout"
     )
 
-    // L'app DEVE essere portata in foreground per mantenere vivo il processo:
-    // i background modes (workout-processing + bluetooth-peripheral) reggono
-    // la sessione solo se l'app e' viva. Se l'intent gira fuori-processo, il
-    // ponte morirebbe appena perform() ritorna.
+    // The app MUST be brought to foreground to keep the process alive: the
+    // background modes (workout-processing + bluetooth-peripheral) only hold
+    // the session while the app is running. If the intent ran out-of-process
+    // the bridge would die as soon as perform() returns.
     static var openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         HeartRateBridge.shared.start()
-        return .result(dialog: "Ponte HR avviato.")
+        return .result(dialog: "HR bridge started.")
     }
 }
 
@@ -43,20 +43,20 @@ struct StartHeartRateBridgeIntent: AppIntent {
 
 struct StopHeartRateBridgeIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Ferma ponte HR"
+    static var title: LocalizedStringResource = "Stop HR Bridge"
 
     static var description = IntentDescription(
-        "Interrompe la trasmissione della frequenza cardiaca.",
-        categoryName: "Allenamento"
+        "Stops broadcasting the heart rate.",
+        categoryName: "Workout"
     )
 
-    // Stop e' fire-and-forget: non serve aprire l'app.
+    // Stop is fire-and-forget: no need to open the app.
     static var openAppWhenRun: Bool = false
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         HeartRateBridge.shared.stop()
-        return .result(dialog: "Ponte HR fermato.")
+        return .result(dialog: "HR bridge stopped.")
     }
 }
 
@@ -68,20 +68,20 @@ struct AirHRMShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StartHeartRateBridgeIntent(),
             phrases: [
-                "Avvia il ponte HR con \(.applicationName)",
-                "Inizia ponte HR con \(.applicationName)",
-                "Accendi \(.applicationName)"
+                "Start the HR bridge with \(.applicationName)",
+                "Begin HR bridge with \(.applicationName)",
+                "Turn on \(.applicationName)"
             ],
-            shortTitle: "Avvia ponte HR",
+            shortTitle: "Start HR Bridge",
             systemImageName: "heart.fill"
         )
         AppShortcut(
             intent: StopHeartRateBridgeIntent(),
             phrases: [
-                "Ferma il ponte HR con \(.applicationName)",
-                "Spegni \(.applicationName)"
+                "Stop the HR bridge with \(.applicationName)",
+                "Turn off \(.applicationName)"
             ],
-            shortTitle: "Ferma ponte HR",
+            shortTitle: "Stop HR Bridge",
             systemImageName: "heart.slash"
         )
     }

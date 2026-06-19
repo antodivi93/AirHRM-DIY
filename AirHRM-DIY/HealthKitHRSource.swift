@@ -35,14 +35,14 @@ final class HealthKitHRSource: NSObject {
     func start(completion: @escaping (Bool) -> Void) {
         guard !isRunning else { completion(true); return }
         guard HKHealthStore.isHealthDataAvailable() else {
-            onError?("HealthKit non disponibile su questo dispositivo")
+            onError?("HealthKit not available on this device")
             completion(false)
             return
         }
         requestAuthorization { [weak self] ok in
             guard let self else { completion(false); return }
             guard ok else {
-                self.onError?("Autorizzazione HealthKit negata")
+                self.onError?("HealthKit authorization denied")
                 completion(false)
                 return
             }
@@ -131,13 +131,13 @@ final class HealthKitHRSource: NSObject {
                         self.startSourceMonitor()
                         completion(true)
                     } else {
-                        self.onError?("Errore avvio sessione: \(err?.localizedDescription ?? "?")")
+                        self.onError?("Session start error: \(err?.localizedDescription ?? "?")")
                         completion(false)
                     }
                 }
             }
         } catch {
-            onError?("Impossibile creare la sessione: \(error.localizedDescription)")
+            onError?("Failed to create session: \(error.localizedDescription)")
             log.error("Session error: \(error.localizedDescription)")
             completion(false)
         }
@@ -209,7 +209,7 @@ extension HealthKitHRSource: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didFailWithError error: Error) {
         Task { @MainActor in
-            self.onError?("Sessione fallita: \(error.localizedDescription)")
+            self.onError?("Session failed: \(error.localizedDescription)")
         }
     }
 }

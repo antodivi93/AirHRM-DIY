@@ -32,8 +32,6 @@ Supporting types: `HRGatt` (static GATT constants), `BridgeState` (state enum wi
 - **Xcode 26 or later** on a Mac
 - An Apple ID (free — no paid Developer Program required)
 
-The iOS Simulator cannot be used: it does not support the Core Bluetooth peripheral role and cannot deliver AirPods heart rate data.
-
 ## Setup
 
 1. Clone the repo and open `AirHRM-DIY.xcodeproj`.
@@ -59,7 +57,7 @@ Default builds are signed with **Free Provisioning** (no paid Developer Program)
 
 [LightBlue](https://punchthrough.com/lightblue/) (free, by Punch Through) is a useful sanity check for the BLE side. With the bridge running on your iPhone, scan from LightBlue on a Mac or a second iOS device:
 
-- Find the entry corresponding to the iPhone (often displayed under the GAP device name, e.g. `Antonio's iPhone`).
+- Find the entry corresponding to the iPhone (often displayed under the GAP device name set in iOS Settings → General → About → Name).
 - Properties to verify: `Local Name = AirHRM-DIY`, `Service UUIDs = 180D`, `Device Is Connectable = Yes`.
 - Tap **Connect** → expand the **Heart Rate** service → tap **Heart Rate Measurement** (UUID `2A37`) → **Listen for Notifications**.
 - You should see notified values like `0x00 5A` (= 90 BPM) arrive every ~5 seconds.
@@ -77,7 +75,6 @@ These are the findings collected during development and testing. Some are restri
 - **The Heart Rate Measurement packet format used here is UINT8** (`[flags=0x00, bpm]`), so the maximum representable BPM is 255. Above that (which does not happen for humans) you would need to set the flags bit 0 to 1 and switch to UINT16.
 - **Body Sensor Location value is cosmetic.** Set to *Chest* (`0x01`) by default; tested values (Chest, Ear Lobe) do not change receiver behavior.
 - **Free Provisioning signs apps for only 7 days.** The app stops launching after that and must be re-installed via `⌘R` in Xcode, or auto-renewed by AltStore / SideStore.
-- **Simulator is not usable.** No Core Bluetooth peripheral role, no AirPods HR through HealthKit.
 
 If you have a Garmin FR265 connecting successfully to this app, or insight into the firmware-level reason it refuses, please open an issue. A hardware workaround for receivers in this category is to use an **ESP32** that receives the BPM from the iPhone and re-broadcasts it with more permissive advertising parameters; that's outside the scope of this repository.
 

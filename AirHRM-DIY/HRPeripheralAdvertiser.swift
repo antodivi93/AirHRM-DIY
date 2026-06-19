@@ -94,7 +94,7 @@ final class HRPeripheralAdvertiser: NSObject {
             hasPendingResend = false
         } else {
             hasPendingResend = true
-            log.debug("updateValue in coda (transmit queue piena), attendo isReady")
+            log.debug("updateValue queued (transmit queue full), waiting for isReady")
         }
     }
 
@@ -157,7 +157,7 @@ final class HRPeripheralAdvertiser: NSObject {
         // Stoppando e ri-startando in foreground iOS lo riemette nel formato standard.
         if mgr.isAdvertising {
             mgr.stopAdvertising()
-            log.notice("[ble] stopAdvertising prima del restart pulito")
+            log.notice("[ble] stopAdvertising before clean restart")
         }
         // Ripristinato Local Name dopo test: la rimozione non sbloccava il Garmin
         // (rifiuto firmware più profondo, vedi note nel progetto). Tenere il Local

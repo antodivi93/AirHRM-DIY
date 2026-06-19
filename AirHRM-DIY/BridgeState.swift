@@ -22,16 +22,16 @@ enum BridgeState: Equatable {
 
     var displayText: String {
         switch self {
-        case .idle:                 return "Pronto"
-        case .starting:             return "Avvio sessione di allenamento…"
-        case .waitingForSensor:     return "Sessione attiva — indossa gli AirPods"
-        case .broadcasting:         return "In trasmissione come \(HRGatt.localName)"
-        case .contactLost:          return "Contatto perso — Garmin in fallback al polso"
-        case .sessionRecovered:     return "Sessione workout recuperata dal background"
-        case .bluetoothOff:         return "Bluetooth spento"
-        case .bluetoothDenied:      return "Permesso Bluetooth negato"
-        case .bluetoothUnavailable: return "Bluetooth non supportato"
-        case .bluetoothResetting:   return "Bluetooth in reset…"
+        case .idle:                 return "Ready"
+        case .starting:             return "Starting workout session…"
+        case .waitingForSensor:     return "Session active — put on the AirPods"
+        case .broadcasting:         return "Broadcasting as \(HRGatt.localName)"
+        case .contactLost:          return "Contact lost — receiver falling back to wrist"
+        case .sessionRecovered:     return "Workout session recovered from background"
+        case .bluetoothOff:         return "Bluetooth off"
+        case .bluetoothDenied:      return "Bluetooth permission denied"
+        case .bluetoothUnavailable: return "Bluetooth not supported"
+        case .bluetoothResetting:   return "Bluetooth resetting…"
         case .error(let msg):       return msg
         }
     }

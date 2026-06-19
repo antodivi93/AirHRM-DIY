@@ -36,18 +36,18 @@ struct ContentView: View {
             }
 
             if bridge.contactLost {
-                Label("Contatto perso", systemImage: "exclamationmark.triangle.fill")
+                Label("Contact lost", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .font(.subheadline.weight(.semibold))
             }
 
             if let source = bridge.currentSource {
-                Text("Sorgente: \(source)")
+                Text("Source: \(source)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Label(bridge.subscriberConnected ? "Garmin collegato" : "Nessun ricevitore",
+            Label(bridge.subscriberConnected ? "Receiver connected" : "No receiver",
                   systemImage: bridge.subscriberConnected ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
                 .foregroundStyle(bridge.subscriberConnected ? .green : .secondary)
 
@@ -58,7 +58,7 @@ struct ContentView: View {
                 .padding(.horizontal)
 
             Toggle(isOn: $bridge.autoStartEnabled) {
-                Label("Avvio automatico con AirPods", systemImage: "airpods.pro")
+                Label("Auto-start when AirPods connect", systemImage: "airpods.pro")
                     .font(.subheadline)
             }
             .padding(.horizontal)
@@ -66,7 +66,7 @@ struct ContentView: View {
             Button {
                 bridge.isBroadcasting ? bridge.stop() : bridge.start()
             } label: {
-                Text(bridge.isBroadcasting ? "Ferma" : "Avvia ponte HR")
+                Text(bridge.isBroadcasting ? "Stop" : "Start HR Bridge")
                     .font(.title3.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding()
