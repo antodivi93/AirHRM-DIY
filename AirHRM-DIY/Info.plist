@@ -20,24 +20,22 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>L'app trasmette la frequenza cardiaca via Bluetooth al tuo Garmin.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>L'app legge la frequenza cardiaca per ritrasmetterla ai tuoi dispositivi fitness.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>L'app avvia una sessione di allenamento per attivare il sensore HR degli AirPods.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+		<string>bluetooth-peripheral</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<!-- Stringhe d'uso: obbligatorie, mostrate al primo permesso -->
-	<key>NSHealthShareUsageDescription</key>
-	<string>L'app legge la frequenza cardiaca per ritrasmetterla ai tuoi dispositivi fitness.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>L'app avvia una sessione di allenamento per attivare il sensore HR degli AirPods.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>L'app trasmette la frequenza cardiaca via Bluetooth al tuo Garmin.</string>
-	<!-- Background modes: lavorare con schermo spento / telefono in tasca -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>workout-processing</string>
-		<string>bluetooth-peripheral</string>
 	</array>
 </dict>
 </plist>
