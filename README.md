@@ -53,6 +53,24 @@ Default builds are signed with **Free Provisioning** (no paid Developer Program)
 3. On your fitness device, scan for a heart rate strap. Pair with **AirHRM-DIY**.
 4. Start your activity. The fitness device will record HR from the AirPods via the bridge.
 
+## Pairing with smartwatch-class receivers
+
+If your fitness device is also a smartwatch paired to the same iPhone (notifications, weather, music control), pairing the HR bridge can fail or drop mid-activity.
+
+**Why this happens.** Two BLE connections to the same receiver would originate from the same iPhone MAC address: one for smart features (ANCS / notifications, managed by the watch's companion app), one for the Heart Rate sensor profile published by this app. Many receivers will not maintain both concurrent links from a single source and drop one of them — typically the HR one, because system-level services take priority. The receiver isn't broken and the bridge isn't broken; the two flows are colliding on the same radio identity.
+
+**Per-activity workaround (recommended).** On the receiver, temporarily disable the link to the phone before starting the activity, and re-enable it after:
+
+1. From the watch face, open the controls/shortcut menu (on most Garmin models: hold the `Light` button for ~2s).
+2. Toggle the **Phone** icon **off**. Smart notifications and live sync are now suspended.
+3. In your sensor settings, pair or connect to **AirHRM-DIY**. The handshake completes without contention.
+4. Start your activity. HR streams from the bridge for the whole workout.
+5. When finished, re-enable the **Phone** toggle. The watch reconnects to its companion app and uploads the activity.
+
+Other brands (Polar, Wahoo, Suunto, Coros, …) expose equivalent controls under different names — *Phone connection*, *Smart features*, *Notifications off*. Verified on Garmin Forerunner 265; reports on other models welcome.
+
+**One-time alternative.** Unpair the receiver from its companion app on the iPhone entirely. The ANCS link goes away, the collision can't happen, and the bridge pairs as a regular sensor with no per-activity steps. You lose live phone notifications and companion-app sync features on the watch; most sport watches still upload activities to the cloud via Wi-Fi or USB.
+
 ## Testing the BLE peripheral with LightBlue
 
 [LightBlue](https://punchthrough.com/lightblue/) (free, by Punch Through) is a useful sanity check for the BLE side. With the bridge running on your iPhone, scan from LightBlue on a Mac or a second iOS device:
@@ -68,7 +86,6 @@ If LightBlue works, the peripheral is GATT-compliant and any standards-conformin
 
 These are the findings collected during development and testing. Some are restrictions baked into iOS, some are receiver-specific.
 
-- **Garmin Forerunner 265 fails to connect.** The watch sees `AirHRM-DIY` in its sensor scan, but every pairing attempt fails before the GATT layer of our peripheral. Our `didSubscribeTo`, `didReceiveRead`, and `didUnsubscribe` delegates were never invoked across many tests. LightBlue connects to the same peripheral without issue. The conclusion is a firmware-level rejection by the FR265 of iOS peripherals acting as third-party HR sensors. Latest firmware available as of June 2026 reproduces the issue. No app-side fix found.
 - **iOS does not allow publishing the Device Information Service (`0x180A`)** from `CBPeripheralManager`. The `add` call fails with *"The specified UUID is not allowed for this operation"*. iOS exposes the DIS at the system level, but we cannot add manufacturer / model characteristics from app code. Some central firmwares that look for the DIS may interpret its absence in unexpected ways.
 - **GAP Device Name (`0x2A00`) cannot be overridden** by the app. iOS automatically populates it with the iPhone's name from Settings. The `CBAdvertisementDataLocalNameKey` lets you set the *advertising* local name, but the post-connection GAP name remains the iPhone's name. Some central firmwares may treat the mismatch as suspicious.
 - **iOS forces background advertising into "overflow" mode**, where the service UUID is moved into a special area readable only by iOS centrals scanning explicitly for it. Non-iOS centrals (LightBlue on Mac, most fitness watches) will not see the peripheral while the app is in the background. The app explicitly forces a clean `stopAdvertising` + `startAdvertising` cycle on every `didBecomeActive` notification to leave overflow mode, so it can be seen by all scanners in foreground.
@@ -76,15 +93,14 @@ These are the findings collected during development and testing. Some are restri
 - **Body Sensor Location value is cosmetic.** Set to *Chest* (`0x01`) by default; tested values (Chest, Ear Lobe) do not change receiver behavior.
 - **Free Provisioning signs apps for only 7 days.** The app stops launching after that and must be re-installed via `⌘R` in Xcode, or auto-renewed by AltStore / SideStore.
 
-If you have a Garmin FR265 connecting successfully to this app, or insight into the firmware-level reason it refuses, please open an issue. A hardware workaround for receivers in this category is to use an **ESP32** that receives the BPM from the iPhone and re-broadcasts it with more permissive advertising parameters; that's outside the scope of this repository.
-
 ## Compatibility (observed)
 
 | Receiver | Status |
 |---|---|
 | LightBlue (iOS / macOS) | Verified |
-| Garmin Forerunner 265 | Fails — see Known limitations |
-| Wahoo / Polar / generic BLE HR receivers | Likely OK (standards-compliant peripheral) — not personally tested |
+| Garmin Forerunner 265 | Verified — requires the per-activity workaround above |
+| Other Garmin / Polar / Wahoo / Suunto / Coros smartwatches | Likely OK with the same workaround — reports welcome |
+| Cycling computers and gym equipment (non-smartwatch BLE HR centrals) | Likely OK without any workaround — reports welcome |
 
 If you test with hardware not listed, please open an issue or PR with your findings.
 
