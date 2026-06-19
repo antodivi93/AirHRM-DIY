@@ -20,8 +20,11 @@ enum HRGatt {
     static let manufacturerNameUUID       = CBUUID(string: "2A29") // Manufacturer Name String
     static let modelNumberUUID            = CBUUID(string: "2A24") // Model Number String
 
-    // Body Sensor Location: "Ear Lobe"
-    static let bodySensorLocationEarLobe: UInt8 = 0x05
+    // Body Sensor Location codes (Bluetooth SIG):
+    // 0=Other, 1=Chest, 2=Wrist, 3=Finger, 4=Hand, 5=Ear Lobe, 6=Foot
+    // Usiamo "Chest" (0x01) perché alcuni firmware Garmin filtrano i sensori
+    // HR che dichiarano una posizione non-toracica.
+    static let bodySensorLocationChest: UInt8 = 0x01
 
     static let localName         = "AirHRM-DIY"
     static let manufacturerName  = "AirHRM-DIY"

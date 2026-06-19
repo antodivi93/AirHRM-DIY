@@ -134,7 +134,7 @@ final class HRPeripheralAdvertiser: NSObject {
         let bodyLoc = CBMutableCharacteristic(
             type: HRGatt.bodySensorLocationUUID,
             properties: [.read],
-            value: Data([HRGatt.bodySensorLocationEarLobe]),
+            value: Data([HRGatt.bodySensorLocationChest]),
             permissions: [.readable]
         )
         let hrService = CBMutableService(type: HRGatt.serviceUUID, primary: true)
@@ -152,6 +152,7 @@ final class HRPeripheralAdvertiser: NSObject {
             CBAdvertisementDataLocalNameKey: HRGatt.localName
         ])
         state = .advertising
+        log.notice("[ble] startAdvertising service=\(HRGatt.serviceUUID) name=\(HRGatt.localName)")
     }
 
     private func flushPendingPacket() {
@@ -169,11 +170,11 @@ final class HRPeripheralAdvertiser: NSObject {
 extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
 
     nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
+        let rawState = peripheral.state.rawValue
         Task { @MainActor in
+            self.log.notice("[ble] didUpdateState raw=\(rawState)")
             switch peripheral.state {
             case .poweredOn:
-                // Solo se l'app ha esplicitamente abilitato l'advertising (o il sistema
-                // ci ha ripristinato in background mantenendo shouldAdvertise=true).
                 self.publishService()
             case .poweredOff:
                 self.onSubscriberChange?(false)
@@ -196,15 +197,16 @@ extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        didAdd service: CBService,
                                        error: Error?) {
-        let addedHR = service.uuid == HRGatt.serviceUUID
+        let uuid = service.uuid
+        let addedHR = uuid == HRGatt.serviceUUID
+        let errDesc = error?.localizedDescription
         Task { @MainActor in
-            if let error {
+            if let errDesc {
                 self.state = .bluetoothUnavailable
-                self.log.error("add service \(service.uuid): \(error.localizedDescription)")
+                self.log.error("[ble] add service \(uuid) FAILED: \(errDesc)")
                 return
             }
-            // Avviamo l'advertising solo quando l'HR service (il primary) è aggiunto:
-            // il DIS si registra in parallelo e non serve attendere lì.
+            self.log.notice("[ble] add service \(uuid) OK")
             if addedHR { self.startAdvertising() }
         }
     }
@@ -212,7 +214,10 @@ extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        central: CBCentral,
                                        didSubscribeTo characteristic: CBCharacteristic) {
+        let centralID = central.identifier.uuidString.prefix(8)
+        let charUUID = characteristic.uuid
         Task { @MainActor in
+            self.log.notice("[ble] central \(centralID) didSubscribeTo \(charUUID)")
             self.onSubscriberChange?(true)
             // Push immediato dell'ultimo valore conosciuto: alcuni central (Garmin in
             // particolare) si disconnettono se non ricevono dati entro pochi secondi
@@ -220,18 +225,28 @@ extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
             // 60 BPM così la connessione resta viva finché HealthKit non emette un sample.
             guard let char = self.hrCharacteristic else { return }
             let pkt = self.lastPacket ?? Data([0x00, 60])
-            _ = peripheral.updateValue(pkt, for: char, onSubscribedCentrals: [central])
+            let ok = peripheral.updateValue(pkt, for: char, onSubscribedCentrals: [central])
+            self.log.notice("[ble] initial push to central \(centralID) ok=\(ok)")
         }
     }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        central: CBCentral,
                                        didUnsubscribeFrom characteristic: CBCharacteristic) {
-        Task { @MainActor in self.onSubscriberChange?(false) }
+        let centralID = central.identifier.uuidString.prefix(8)
+        Task { @MainActor in
+            self.log.notice("[ble] central \(centralID) didUnsubscribe")
+            self.onSubscriberChange?(false)
+        }
     }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        didReceiveRead request: CBATTRequest) {
+        let centralID = request.central.identifier.uuidString.prefix(8)
+        let charUUID = request.characteristic.uuid
+        Task { @MainActor in
+            self.log.notice("[ble] central \(centralID) didReceiveRead \(charUUID)")
+        }
         peripheral.respond(to: request, withResult: .success)
     }
 
