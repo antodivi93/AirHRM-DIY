@@ -159,12 +159,18 @@ final class HRPeripheralAdvertiser: NSObject {
             mgr.stopAdvertising()
             log.notice("[ble] stopAdvertising prima del restart pulito")
         }
+        // Nota: NON includiamo CBAdvertisementDataLocalNameKey di proposito.
+        // iOS espone automaticamente il GAP Device Name (= nome dell'iPhone in
+        // Impostazioni) e non possiamo modificarlo. Se in advertising mettiamo un
+        // Local Name diverso, alcuni firmware central (Garmin) vedono una
+        // discrepanza tra il nome del peripheral salvato (Local Name di advertise)
+        // e quello letto dopo la connessione (GAP Device Name) e abortiscono la
+        // sessione. Senza Local Name in advertise resta un solo nome: il GAP.
         mgr.startAdvertising([
-            CBAdvertisementDataServiceUUIDsKey: [HRGatt.serviceUUID],
-            CBAdvertisementDataLocalNameKey: HRGatt.localName
+            CBAdvertisementDataServiceUUIDsKey: [HRGatt.serviceUUID]
         ])
         state = .advertising
-        log.notice("[ble] startAdvertising service=\(HRGatt.serviceUUID) name=\(HRGatt.localName)")
+        log.notice("[ble] startAdvertising service=\(HRGatt.serviceUUID) (no local name, GAP only)")
     }
 
     private func flushPendingPacket() {
