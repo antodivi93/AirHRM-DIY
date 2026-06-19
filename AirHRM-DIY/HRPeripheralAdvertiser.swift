@@ -98,12 +98,16 @@ final class HRPeripheralAdvertiser: NSObject {
         }
     }
 
-    /// Da chiamare al ritorno in foreground: se il manager è acceso ma non advertise
-    /// pur dovendo, ripubblica.
+    /// Da chiamare al ritorno in foreground: forza SEMPRE un restart dell'advertising.
+    /// In background iOS mette l'advertising in modalità "overflow" non visibile ai
+    /// central non-iOS (LightBlue, Garmin, ecc.). Quando torniamo in foreground dobbiamo
+    /// ri-emettere in formato standard. Il guard isAdvertising non basta: il manager
+    /// resta in stato "advertising" anche se è in overflow.
     func reassertIfNeeded() {
         guard shouldAdvertise else { return }
         guard let mgr = manager, mgr.state == .poweredOn else { return }
-        if !mgr.isAdvertising { publishService() }
+        // startAdvertising() chiama già stopAdvertising() se serve.
+        startAdvertising()
     }
 
     // MARK: - Internals
