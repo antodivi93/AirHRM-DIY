@@ -120,6 +120,11 @@ final class HRPeripheralAdvertiser: NSObject {
         }
 
         // Heart Rate Service (0x180D)
+        // NOTA: il Device Information Service (0x180A) NON è pubblicabile da un
+        // CBPeripheralManager su iOS — il sistema lo rifiuta con "The specified
+        // UUID is not allowed for this operation". iOS gestisce il DIS a livello
+        // di OS, quindi il central (Garmin) lo trova comunque a livello di
+        // sistema; il nostro app deve esporre solo HRS.
         let hrChar = CBMutableCharacteristic(
             type: HRGatt.heartRateMeasurementUUID,
             properties: [.notify, .read],
@@ -136,26 +141,8 @@ final class HRPeripheralAdvertiser: NSObject {
         hrService.characteristics = [hrChar, bodyLoc]
         hrCharacteristic = hrChar
 
-        // Device Information Service (0x180A) — alcuni firmware Garmin
-        // rifiutano un sensore HR di terze parti se questo manca.
-        let manufacturer = CBMutableCharacteristic(
-            type: HRGatt.manufacturerNameUUID,
-            properties: [.read],
-            value: Data(HRGatt.manufacturerName.utf8),
-            permissions: [.readable]
-        )
-        let model = CBMutableCharacteristic(
-            type: HRGatt.modelNumberUUID,
-            properties: [.read],
-            value: Data(HRGatt.modelNumber.utf8),
-            permissions: [.readable]
-        )
-        let disService = CBMutableService(type: HRGatt.deviceInfoServiceUUID, primary: false)
-        disService.characteristics = [manufacturer, model]
-
         mgr.removeAllServices()
         mgr.add(hrService)
-        mgr.add(disService)
     }
 
     private func startAdvertising() {
