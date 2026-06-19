@@ -48,7 +48,7 @@ Default builds are signed with **Free Provisioning** (no paid Developer Program)
 
 ## Usage
 
-1. Open the app, tap **Avvia ponte HR** (Start HR Bridge), or use the Siri / Shortcuts action `Start Heart Rate Bridge`.
+1. Open the app and tap **Start HR Bridge**, or use the Siri / Shortcuts action of the same name.
 2. Put on the AirPods Pro 3. With Auto-Start enabled (default), step 1 is automatic.
 3. On your fitness device, scan for a heart rate strap. Pair with **AirHRM-DIY**.
 4. Start your activity. The fitness device will record HR from the AirPods via the bridge.
