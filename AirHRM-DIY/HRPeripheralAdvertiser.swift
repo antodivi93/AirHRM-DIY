@@ -169,6 +169,19 @@ final class HRPeripheralAdvertiser: NSObject {
 
 extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
 
+    nonisolated func peripheralManagerDidStartAdvertising(_ peripheral: CBPeripheralManager,
+                                                          error: Error?) {
+        let errDesc = error?.localizedDescription
+        let advertising = peripheral.isAdvertising
+        Task { @MainActor in
+            if let errDesc {
+                self.log.error("[ble] startAdvertising REJECTED by iOS: \(errDesc)")
+            } else {
+                self.log.notice("[ble] iOS confirmed advertising started, isAdvertising=\(advertising)")
+            }
+        }
+    }
+
     nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
         let rawState = peripheral.state.rawValue
         Task { @MainActor in
