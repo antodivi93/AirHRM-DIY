@@ -147,6 +147,14 @@ final class HRPeripheralAdvertiser: NSObject {
 
     private func startAdvertising() {
         guard let mgr = manager, mgr.state == .poweredOn else { return }
+        // Forza un restart pulito: quando l'advertising è già attivo (es. perché
+        // restorato dal sistema o residuo da una sessione precedente con restoreIdentifier)
+        // iOS lo mantiene in formato "overflow" non visibile ai central non-iOS.
+        // Stoppando e ri-startando in foreground iOS lo riemette nel formato standard.
+        if mgr.isAdvertising {
+            mgr.stopAdvertising()
+            log.notice("[ble] stopAdvertising prima del restart pulito")
+        }
         mgr.startAdvertising([
             CBAdvertisementDataServiceUUIDsKey: [HRGatt.serviceUUID],
             CBAdvertisementDataLocalNameKey: HRGatt.localName
