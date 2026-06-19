@@ -119,6 +119,7 @@ final class HRPeripheralAdvertiser: NSObject {
             return
         }
 
+        // Heart Rate Service (0x180D)
         let hrChar = CBMutableCharacteristic(
             type: HRGatt.heartRateMeasurementUUID,
             properties: [.notify, .read],
@@ -131,12 +132,30 @@ final class HRPeripheralAdvertiser: NSObject {
             value: Data([HRGatt.bodySensorLocationEarLobe]),
             permissions: [.readable]
         )
-        let service = CBMutableService(type: HRGatt.serviceUUID, primary: true)
-        service.characteristics = [hrChar, bodyLoc]
+        let hrService = CBMutableService(type: HRGatt.serviceUUID, primary: true)
+        hrService.characteristics = [hrChar, bodyLoc]
         hrCharacteristic = hrChar
 
+        // Device Information Service (0x180A) — alcuni firmware Garmin
+        // rifiutano un sensore HR di terze parti se questo manca.
+        let manufacturer = CBMutableCharacteristic(
+            type: HRGatt.manufacturerNameUUID,
+            properties: [.read],
+            value: Data(HRGatt.manufacturerName.utf8),
+            permissions: [.readable]
+        )
+        let model = CBMutableCharacteristic(
+            type: HRGatt.modelNumberUUID,
+            properties: [.read],
+            value: Data(HRGatt.modelNumber.utf8),
+            permissions: [.readable]
+        )
+        let disService = CBMutableService(type: HRGatt.deviceInfoServiceUUID, primary: false)
+        disService.characteristics = [manufacturer, model]
+
         mgr.removeAllServices()
-        mgr.add(service)
+        mgr.add(hrService)
+        mgr.add(disService)
     }
 
     private func startAdvertising() {
@@ -190,20 +209,32 @@ extension HRPeripheralAdvertiser: CBPeripheralManagerDelegate {
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        didAdd service: CBService,
                                        error: Error?) {
+        let addedHR = service.uuid == HRGatt.serviceUUID
         Task { @MainActor in
             if let error {
                 self.state = .bluetoothUnavailable
-                self.log.error("add service: \(error.localizedDescription)")
-            } else {
-                self.startAdvertising()
+                self.log.error("add service \(service.uuid): \(error.localizedDescription)")
+                return
             }
+            // Avviamo l'advertising solo quando l'HR service (il primary) è aggiunto:
+            // il DIS si registra in parallelo e non serve attendere lì.
+            if addedHR { self.startAdvertising() }
         }
     }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
                                        central: CBCentral,
                                        didSubscribeTo characteristic: CBCharacteristic) {
-        Task { @MainActor in self.onSubscriberChange?(true) }
+        Task { @MainActor in
+            self.onSubscriberChange?(true)
+            // Push immediato dell'ultimo valore conosciuto: alcuni central (Garmin in
+            // particolare) si disconnettono se non ricevono dati entro pochi secondi
+            // dalla subscribe. Se non abbiamo ancora un BPM, mandiamo un placeholder a
+            // 60 BPM così la connessione resta viva finché HealthKit non emette un sample.
+            guard let char = self.hrCharacteristic else { return }
+            let pkt = self.lastPacket ?? Data([0x00, 60])
+            _ = peripheral.updateValue(pkt, for: char, onSubscribedCentrals: [central])
+        }
     }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager,
