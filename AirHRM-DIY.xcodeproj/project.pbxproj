@@ -12,6 +12,7 @@
 		3C367C352FE4931200079F42 /* AudioRouteMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C367C342FE4931200079F42 /* AudioRouteMonitor.swift */; };
 		3C367C372FE4933900079F42 /* HRPeripheralAdvertiser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C367C362FE4933900079F42 /* HRPeripheralAdvertiser.swift */; };
 		3C367C392FE4935C00079F42 /* HealthKitHRSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C367C382FE4935C00079F42 /* HealthKitHRSource.swift */; };
+		3C367C3B2FE50AD700079F42 /* HeartRateBridgeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C367C3A2FE50AD700079F42 /* HeartRateBridgeIntents.swift */; };
 		B7A1000000000000000000C1 /* AirHRM_DIYApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1000000000000000000B1 /* AirHRM_DIYApp.swift */; };
 		B7A1000000000000000000C2 /* HeartRateBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1000000000000000000B2 /* HeartRateBridge.swift */; };
 		B7A1000000000000000000C3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B7A1000000000000000000B3 /* Assets.xcassets */; };
@@ -23,6 +24,7 @@
 		3C367C342FE4931200079F42 /* AudioRouteMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRouteMonitor.swift; sourceTree = "<group>"; };
 		3C367C362FE4933900079F42 /* HRPeripheralAdvertiser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRPeripheralAdvertiser.swift; sourceTree = "<group>"; };
 		3C367C382FE4935C00079F42 /* HealthKitHRSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitHRSource.swift; sourceTree = "<group>"; };
+		3C367C3A2FE50AD700079F42 /* HeartRateBridgeIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateBridgeIntents.swift; sourceTree = "<group>"; };
 		B7A1000000000000000000B1 /* AirHRM_DIYApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirHRM_DIYApp.swift; sourceTree = "<group>"; };
 		B7A1000000000000000000B2 /* HeartRateBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateBridge.swift; sourceTree = "<group>"; };
 		B7A1000000000000000000B3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -63,6 +65,7 @@
 				3C367C342FE4931200079F42 /* AudioRouteMonitor.swift */,
 				3C367C362FE4933900079F42 /* HRPeripheralAdvertiser.swift */,
 				3C367C382FE4935C00079F42 /* HealthKitHRSource.swift */,
+				3C367C3A2FE50AD700079F42 /* HeartRateBridgeIntents.swift */,
 			);
 			path = "AirHRM-DIY";
 			sourceTree = "<group>";
@@ -145,6 +148,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3C367C372FE4933900079F42 /* HRPeripheralAdvertiser.swift in Sources */,
+				3C367C3B2FE50AD700079F42 /* HeartRateBridgeIntents.swift in Sources */,
 				3C367C392FE4935C00079F42 /* HealthKitHRSource.swift in Sources */,
 				B7A1000000000000000000C1 /* AirHRM_DIYApp.swift in Sources */,
 				3C367C312FE492FA00079F42 /* HRGatt.swift in Sources */,

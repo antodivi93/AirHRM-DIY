@@ -19,6 +19,11 @@ import os
 @MainActor
 final class HeartRateBridge: ObservableObject {
 
+    /// Istanza condivisa usata sia dalla UI SwiftUI sia dagli `AppIntent`
+    /// (Siri / Shortcuts / Action Button), che non vedono lo `@StateObject`
+    /// dell'`App` e devono trovare il bridge "vivo".
+    static let shared = HeartRateBridge()
+
     // MARK: - Stato osservabile dalla UI
 
     @Published private(set) var state: BridgeState = .idle

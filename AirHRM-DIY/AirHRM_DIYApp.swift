@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct AirHRM_DIYApp: App {
-    @StateObject private var bridge = HeartRateBridge()
+    @StateObject private var bridge = HeartRateBridge.shared
     var body: some Scene {
         WindowGroup {
             ContentView()
